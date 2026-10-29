@@ -12,266 +12,314 @@ import {
   House,
   LayoutDashboard,
   Leaf,
+  Menu,
   Settings,
+  X,
   Zap,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 import { loadEnergyData } from "./services/energyData";
 
-const formatNumber = (value, digits = 2) =>
+const number = (value, digits = 2) =>
   Number(value || 0).toLocaleString("en-IN", {
     maximumFractionDigits: digits,
-    minimumFractionDigits: 0,
   });
 
-const formatCompact = (value) => {
-  const number = Number(value || 0);
-
-  if (Math.abs(number) >= 1_000_000) {
-    return `${(number / 1_000_000).toFixed(2)}M`;
-  }
-
-  if (Math.abs(number) >= 1_000) {
-    return `${(number / 1_000).toFixed(2)}K`;
-  }
-
-  return formatNumber(number);
+const compact = (value) => {
+  const n = Number(value || 0);
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(n) >= 1_000) return `${(n / 1_000).toFixed(2)}K`;
+  return number(n);
 };
 
-const formatDate = (dateString) =>
-  new Date(`${dateString}T12:00:00`).toLocaleDateString("en-IN", {
+const dateLabel = (value) => {
+  if (!value) return "—";
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-IN", {
     day: "numeric",
-    month: "long",
+    month: "short",
     year: "numeric",
   });
+};
 
-function Sidebar() {
+const monthLabel = (value) => {
+  if (!value) return "—";
+  return new Date(`${value.slice(0, 7)}-02T12:00:00`).toLocaleDateString(
+    "en-IN",
+    { month: "short", year: "2-digit" }
+  );
+};
+
+const sections = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "consumption", label: "Consumption", icon: BarChart3 },
+  { id: "tariffs", label: "Tariff analysis", icon: Zap },
+  { id: "households", label: "Households", icon: House },
+  { id: "forecast", label: "Forecasting", icon: Activity },
+  { id: "settings", label: "Settings", icon: Settings },
+];
+
+function Sidebar({ activeSection, setActiveSection, mobileOpen, setMobileOpen }) {
   return (
-    <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-icon">
-          <Zap size={23} />
-        </div>
-        <div>
-          <h2>GRID_PULSE</h2>
-          <span>ENERGY INTELLIGENCE</span>
-        </div>
-      </div>
-
-      <div className="nav-label">WORKSPACE</div>
-
-      <nav className="navigation">
-        <a className="nav-item active" href="#overview">
-          <LayoutDashboard size={19} /> Overview
-        </a>
-        <a className="nav-item" href="#consumption">
-          <BarChart3 size={19} /> Consumption
-        </a>
-        <a className="nav-item" href="#tariffs">
-          <Zap size={19} /> Tariff analysis
-        </a>
-        <a className="nav-item" href="#households">
-          <House size={19} /> Households
-        </a>
-        <a className="nav-item" href="#forecast">
-          <Activity size={19} /> Forecasting
-        </a>
-      </nav>
-
-      <div className="sidebar-bottom">
-        <div className="eco-card">
-          <Leaf size={21} />
-          <strong>Smarter energy insights</strong>
-          <p>
-            Explore consumption patterns and make data-informed decisions.
-          </p>
+    <>
+      {mobileOpen && (
+        <button
+          className="sidebar-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+      <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
+        <div className="brand">
+          <div className="brand-icon"><Zap size={23} /></div>
+          <div>
+            <h2>GRID_PULSE</h2>
+            <span>ENERGY INTELLIGENCE</span>
+          </div>
+          <button
+            className="mobile-close icon-button"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <a className="nav-item" href="#settings">
-          <Settings size={19} /> Settings
-        </a>
-      </div>
-    </aside>
+        <div className="nav-label">WORKSPACE</div>
+        <nav className="navigation" aria-label="Main navigation">
+          {sections.map(({ id, label, icon: Icon }) => (
+            <a
+              key={id}
+              className={`nav-item ${activeSection === id ? "active" : ""}`}
+              href={`#${id}`}
+              onClick={() => {
+                setActiveSection(id);
+                setMobileOpen(false);
+              }}
+            >
+              <Icon size={19} />
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="eco-card">
+            <Leaf size={21} />
+            <strong>Smarter energy insights</strong>
+            <p>Explore consumption patterns and make data-informed decisions.</p>
+          </div>
+          <span className="sidebar-version">GRID_PULSE · Analytics</span>
+        </div>
+      </aside>
+    </>
   );
 }
 
-function MetricCard({ metric }) {
-  const Icon = metric.icon;
-
+function MetricCard({ title, value, unit, caption, icon: Icon }) {
   return (
     <article className="metric-card">
       <div className="metric-top">
-        <span>{metric.title}</span>
-        <div className="metric-icon">
-          <Icon size={19} />
-        </div>
+        <span>{title}</span>
+        <div className="metric-icon"><Icon size={19} /></div>
       </div>
-
       <div className="metric-value">
-        {metric.value}
-        <span>{metric.unit}</span>
+        {value}<span>{unit}</span>
       </div>
-
-      <p className="metric-caption">{metric.change}</p>
+      <p className="metric-caption">{caption}</p>
     </article>
   );
 }
 
-function TrendChart({ dailyData, monthlyData, chartPeriod }) {
-  const chartData = useMemo(() => {
-    if (chartPeriod === "Daily") {
-      return dailyData.map((item) => ({
-        label: item.date,
-        displayLabel: new Date(
-          `${item.date}T12:00:00`
-        ).toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "short",
-        }),
-        energy: Number(item.total_energy_kwh || 0),
-      }));
-    }
-
-    return monthlyData.map((item) => ({
-      label: item.month,
-      displayLabel: new Date(
-        `${item.month.slice(0, 7)}-02T12:00:00`
-      ).toLocaleDateString("en-IN", {
-        month: "short",
-        year: "2-digit",
-      }),
-      energy: Number(item.monthly_energy_kwh || 0),
-    }));
-  }, [dailyData, monthlyData, chartPeriod]);
-
-  const visibleData = chartData.slice(-12);
-
-  if (visibleData.length === 0) {
-    return <p className="chart-note">No energy data available.</p>;
-  }
-
-  const maxEnergy = Math.max(
-    ...visibleData.map((item) => item.energy),
-    1
+function PanelHeading({ title, subtitle, children }) {
+  return (
+    <div className="panel-heading">
+      <div>
+        <h3>{title}</h3>
+        <p>{subtitle}</p>
+      </div>
+      {children}
+    </div>
   );
+}
 
-  const points = visibleData.map((item, index) => {
-    const x =
-      visibleData.length === 1
-        ? 250
-        : 12 + (index * 476) / (visibleData.length - 1);
+function EnergyTooltip({ active, payload, label, period }) {
+  if (!active || !payload?.length) return null;
 
-    const y = 150 - (item.energy / maxEnergy) * 110;
+  const displayedLabel =
+    period === "Monthly" ? monthLabel(label) : dateLabel(label);
 
-    return { ...item, x, y };
-  });
+  return (
+    <div className="chart-tooltip">
+      <strong>{displayedLabel}</strong>
+      <p>{number(payload[0].value)} kWh</p>
+    </div>
+  );
+}
 
-  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
-  const areaPoints = `12,150 ${linePoints} 488,150`;
+function TrendChart({ data, period }) {
+  if (!data.length) {
+    return <div className="empty-state">No data is available for this selection.</div>;
+  }
 
   return (
     <div className="chart-wrap">
       <div className="chart-legend">
         <span className="legend-dot" />
         Energy consumption
-        <span className="chart-note">Real dataset</span>
+        <span className="chart-note">Processed dataset</span>
       </div>
 
-      <svg
-        className="trend-chart"
-        viewBox="0 0 500 180"
-        role="img"
-        aria-label={`${chartPeriod} energy consumption trend`}
-      >
-        {[35, 70, 105, 140].map((y) => (
-          <line
-            key={y}
-            x1="10"
-            y1={y}
-            x2="490"
-            y2={y}
-            className="grid-line"
-          />
-        ))}
-
-        <polygon points={areaPoints} className="chart-area" />
-        <polyline points={linePoints} className="chart-line" />
-
-        {points.map((point, index) => (
-          <circle
-            key={`${point.label}-${index}`}
-            cx={point.x}
-            cy={point.y}
-            r="3.5"
-            className="chart-point"
-          >
-            <title>
-              {point.label}: {formatNumber(point.energy)} kWh
-            </title>
-          </circle>
-        ))}
-      </svg>
-
-      <div className="chart-months">
-        {points.map((point, index) => (
-          <span key={`${point.label}-${index}`}>
-            {point.displayLabel}
-          </span>
-        ))}
+      <div className="chart-canvas">
+        <ResponsiveContainer width="100%" height="100%">
+          {period === "Monthly" ? (
+            <AreaChart data={data} margin={{ top: 10, right: 12, left: 4, bottom: 4 }}>
+              <defs>
+                <linearGradient id="energyFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#45d6ad" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#45d6ad" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="#25383d" strokeDasharray="3 3" />
+              <XAxis
+                dataKey="month"
+                tickFormatter={monthLabel}
+                tick={{ fill: "#91a9ae", fontSize: 11 }}
+                minTickGap={14}
+              />
+              <YAxis
+                tickFormatter={(value) => compact(value)}
+                tick={{ fill: "#91a9ae", fontSize: 11 }}
+                width={55}
+              />
+              <Tooltip content={<EnergyTooltip period={period} />} />
+              <Area
+                type="monotone"
+                dataKey="monthly_energy_kwh"
+                name="Energy"
+                stroke="#45d6ad"
+                strokeWidth={2.5}
+                fill="url(#energyFill)"
+                activeDot={{ r: 5, fill: "#45d6ad" }}
+              />
+            </AreaChart>
+          ) : (
+            <BarChart data={data} margin={{ top: 10, right: 12, left: 4, bottom: 4 }}>
+              <CartesianGrid stroke="#25383d" strokeDasharray="3 3" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(value) =>
+                  new Date(`${value}T12:00:00`).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                  })
+                }
+                tick={{ fill: "#91a9ae", fontSize: 11 }}
+                minTickGap={18}
+              />
+              <YAxis
+                tickFormatter={(value) => compact(value)}
+                tick={{ fill: "#91a9ae", fontSize: 11 }}
+                width={55}
+              />
+              <Tooltip content={<EnergyTooltip period={period} />} />
+              <Bar
+                dataKey="total_energy_kwh"
+                name="Energy"
+                fill="#45d6ad"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
       </div>
+      <p className="chart-caption">
+        {period === "Monthly"
+          ? "Monthly totals in kWh. Incomplete months reflect available dates."
+          : "Daily totals in kWh. Use the date filter to change the period."}
+      </p>
     </div>
   );
 }
 
 function TariffCard({ tariffs }) {
-  const standard = tariffs.find((item) => item.tariff_type === "Std");
-  const tou = tariffs.find((item) => item.tariff_type === "ToU");
+  const [showDetails, setShowDetails] = useState(false);
+  const standard = tariffs.find((row) => row.tariff_type === "Std");
+  const tou = tariffs.find((row) => row.tariff_type === "ToU");
 
-  const standardShare = Number(standard?.energy_share_percent || 0);
-  const touShare = Number(tou?.energy_share_percent || 0);
+  const rows = [
+    { row: standard, label: "Standard tariff", type: "standard" },
+    { row: tou, label: "Time-of-use tariff", type: "tou" },
+  ];
 
   return (
     <section className="panel" id="tariffs">
-      <div className="panel-heading">
-        <div>
-          <h3>Tariff distribution</h3>
-          <p>Share of recorded energy consumption</p>
-        </div>
-        <ChevronDown size={18} />
-      </div>
+      <PanelHeading
+        title="Tariff distribution"
+        subtitle="Share of recorded energy consumption"
+      >
+        <button
+          className="icon-button"
+          aria-label={showDetails ? "Hide tariff details" : "Show tariff details"}
+          aria-expanded={showDetails}
+          onClick={() => setShowDetails((value) => !value)}
+        >
+          <ChevronDown className={showDetails ? "rotate-icon" : ""} size={19} />
+        </button>
+      </PanelHeading>
 
-      <div className="tariff-row">
-        <div className="tariff-label">
-          <span className="tariff-dot standard" />
-          <span>Standard tariff</span>
-          <strong>{standardShare.toFixed(2)}%</strong>
-        </div>
+      {rows.map(({ row, label, type }) => {
+        const share = Number(row?.energy_share_percent || 0);
+        return (
+          <div className="tariff-row" key={type}>
+            <div className="tariff-label">
+              <span className={`tariff-dot ${type}`} />
+              <span>{label}</span>
+              <strong>{share.toFixed(2)}%</strong>
+            </div>
+            <div
+              className="progress-track"
+              role="progressbar"
+              aria-label={label}
+              aria-valuenow={share}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className={`progress-fill ${type}-fill`}
+                style={{ width: `${Math.max(0, Math.min(100, share))}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
 
-        <div className="progress-track">
-          <div
-            className="progress-fill standard-fill"
-            style={{ width: `${standardShare}%` }}
-          />
+      {showDetails && (
+        <div className="tariff-details">
+          {rows.map(({ row, label, type }) => (
+            <div key={type} className="detail-row">
+              <span>{label} energy</span>
+              <strong>{number(row?.total_energy_kwh)} kWh</strong>
+            </div>
+          ))}
+          <p>
+            Shares describe energy recorded under each tariff. They do not
+            establish that one tariff causes higher or lower consumption.
+          </p>
         </div>
-      </div>
-
-      <div className="tariff-row">
-        <div className="tariff-label">
-          <span className="tariff-dot tou" />
-          <span>Time-of-use tariff</span>
-          <strong>{touShare.toFixed(2)}%</strong>
-        </div>
-
-        <div className="progress-track">
-          <div
-            className="progress-fill tou-fill"
-            style={{ width: `${touShare}%` }}
-          />
-        </div>
-      </div>
+      )}
 
       <p className="panel-footnote">
-        Shares reflect the processed dataset, not a causal comparison of
-        tariff effects.
+        Based on the full processed tariff summary.
       </p>
     </section>
   );
@@ -283,35 +331,26 @@ function App() {
     monthly: [],
     tariffs: [],
   });
-
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState("");
   const [dateRange, setDateRange] = useState("Full dataset");
   const [chartPeriod, setChartPeriod] = useState("Monthly");
+  const [activeSection, setActiveSection] = useState("overview");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchData() {
-      try {
-        const data = await loadEnergyData();
-
-        if (!cancelled) {
-          setEnergyData(data);
-          setDataError("");
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setDataError(error.message || "Unable to load energy data.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchData();
+    loadEnergyData()
+      .then((data) => {
+        if (!cancelled) setEnergyData(data);
+      })
+      .catch((error) => {
+        if (!cancelled) setDataError(error.message || "Unable to load CSV data.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
       cancelled = true;
@@ -320,138 +359,127 @@ function App() {
 
   const filteredDaily = useMemo(() => {
     const daily = energyData.daily;
+    if (!daily.length || dateRange === "Full dataset") return daily;
 
-    if (dateRange === "Full dataset" || daily.length === 0) {
-      return daily;
-    }
-
-    const latestDate = new Date(`${daily[daily.length - 1].date}T12:00:00`);
-    const days = dateRange === "Last 30 days" ? 30 : 90;
+    const lastDate = new Date(`${daily[daily.length - 1].date}T12:00:00`);
+    const cutoff = new Date(lastDate);
 
     if (dateRange === "Last 12 months") {
-      const cutoff = new Date(latestDate);
       cutoff.setFullYear(cutoff.getFullYear() - 1);
-
-      return daily.filter(
-        (item) => new Date(`${item.date}T12:00:00`) >= cutoff
+    } else {
+      cutoff.setDate(
+        cutoff.getDate() - (dateRange === "Last 30 days" ? 30 : 90) + 1
       );
     }
 
-    const cutoff = new Date(latestDate);
-    cutoff.setDate(cutoff.getDate() - days + 1);
-
     return daily.filter(
-      (item) => new Date(`${item.date}T12:00:00`) >= cutoff
+      (row) => new Date(`${row.date}T12:00:00`) >= cutoff
     );
   }, [energyData.daily, dateRange]);
 
   const filteredMonthly = useMemo(() => {
-    if (dateRange === "Full dataset") {
-      return energyData.monthly;
-    }
+    if (dateRange === "Full dataset") return energyData.monthly;
+    if (!filteredDaily.length) return [];
 
-    const dailyDates = filteredDaily;
+    const firstMonth = filteredDaily[0].date.slice(0, 7);
+    const lastMonth = filteredDaily[filteredDaily.length - 1].date.slice(0, 7);
 
-    if (dailyDates.length === 0) {
-      return [];
-    }
-
-    const firstMonth = dailyDates[0].date.slice(0, 7);
-    const lastMonth = dailyDates[dailyDates.length - 1].date.slice(0, 7);
-
-    return energyData.monthly.filter((item) => {
-      const month = item.month.slice(0, 7);
+    return energyData.monthly.filter((row) => {
+      const month = row.month.slice(0, 7);
       return month >= firstMonth && month <= lastMonth;
     });
   }, [energyData.monthly, filteredDaily, dateRange]);
 
-  const totalEnergy = useMemo(
-    () =>
-      energyData.daily.reduce(
-        (sum, item) => sum + Number(item.total_energy_kwh || 0),
-        0
-      ),
-    [energyData.daily]
-  );
+  const chartData = chartPeriod === "Monthly" ? filteredMonthly : filteredDaily;
 
-  const averageDailyEnergy =
-    energyData.daily.length > 0 ? totalEnergy / energyData.daily.length : 0;
-
-  const averageHouseholds =
-    energyData.daily.length > 0
-      ? energyData.daily.reduce(
-          (sum, item) => sum + Number(item.households || 0),
-          0
-        ) / energyData.daily.length
-      : 0;
-
-  const totalReadings = energyData.daily.reduce(
-    (sum, item) => sum + Number(item.total_readings || 0),
+  const totalEnergy = filteredDaily.reduce(
+    (sum, row) => sum + Number(row.total_energy_kwh || 0),
     0
   );
 
-  const highestDay = energyData.daily.reduce(
-    (highest, item) =>
-      !highest ||
-      Number(item.total_energy_kwh) > Number(highest.total_energy_kwh)
-        ? item
-        : highest,
+  const averageDailyEnergy = filteredDaily.length
+    ? totalEnergy / filteredDaily.length
+    : 0;
+
+  const averageHouseholds = filteredDaily.length
+    ? filteredDaily.reduce(
+        (sum, row) => sum + Number(row.households || 0),
+        0
+      ) / filteredDaily.length
+    : 0;
+
+  const totalReadings = filteredDaily.reduce(
+    (sum, row) => sum + Number(row.total_readings || 0),
+    0
+  );
+
+  const highestDay = filteredDaily.reduce(
+    (best, row) =>
+      !best || row.total_energy_kwh > best.total_energy_kwh ? row : best,
     null
   );
 
-  const lowestDay = energyData.daily.reduce(
-    (lowest, item) =>
-      !lowest ||
-      Number(item.total_energy_kwh) < Number(lowest.total_energy_kwh)
-        ? item
-        : lowest,
+  const lowestDay = filteredDaily.reduce(
+    (best, row) =>
+      !best || row.total_energy_kwh < best.total_energy_kwh ? row : best,
     null
   );
 
   const metrics = [
     {
       title: "Total energy",
-      value: formatCompact(totalEnergy),
+      value: compact(totalEnergy),
       unit: "kWh",
-      change: "Dataset total",
+      caption: dateRange,
       icon: Zap,
     },
     {
       title: "Average daily energy",
-      value: formatCompact(averageDailyEnergy),
+      value: compact(averageDailyEnergy),
       unit: "kWh",
-      change: `Across ${energyData.daily.length} dates`,
+      caption: `Across ${filteredDaily.length} available dates`,
       icon: Activity,
     },
     {
       title: "Households per day",
-      value: formatNumber(averageHouseholds, 0),
+      value: number(averageHouseholds, 0),
       unit: "average",
-      change: "Represented households",
+      caption: "Represented households",
       icon: House,
     },
     {
       title: "Raw readings",
-      value: formatCompact(totalReadings),
+      value: compact(totalReadings),
       unit: "records",
-      change: "Half-hour measurements",
+      caption: "Counts from daily summaries",
       icon: BatteryCharging,
     },
   ];
 
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Sidebar
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+      />
 
       <main className="main-content" id="overview">
         <header className="topbar">
           <div className="breadcrumb">
-            Workspace <span>/</span> Overview
+            <button
+              className="icon-button mobile-menu"
+              aria-label="Open navigation"
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu size={21} />
+            </button>
+            Workspace <span>/</span> {sections.find((s) => s.id === activeSection)?.label}
           </div>
-
           <div className="topbar-right">
-            <span className="status-dot" />
-            {loading ? "Loading data" : dataError ? "Data unavailable" : "Live dataset"}
+            <span className={`status-dot ${dataError ? "status-error" : ""}`} />
+            {loading ? "Loading data" : dataError ? "Data unavailable" : "Processed dataset"}
             <div className="avatar">GP</div>
           </div>
         </header>
@@ -461,8 +489,7 @@ function App() {
             <p className="eyebrow">ENERGY ANALYTICS PLATFORM</p>
             <h1>Energy overview</h1>
             <p className="page-description">
-              Understand consumption patterns across the available household
-              energy data.
+              Understand consumption patterns across the available household energy data.
             </p>
           </div>
 
@@ -470,9 +497,9 @@ function App() {
             <CalendarDays size={17} />
             <select
               className="dashboard-select"
+              aria-label="Select date range"
               value={dateRange}
               onChange={(event) => setDateRange(event.target.value)}
-              aria-label="Filter dashboard date range"
             >
               <option>Full dataset</option>
               <option>Last 30 days</option>
@@ -483,56 +510,46 @@ function App() {
           </div>
         </section>
 
+        {loading && <div className="loading-message">Loading energy analytics…</div>}
+
         {dataError && (
           <div className="data-error" role="alert">
-            <strong>Could not load energy data.</strong>
+            <strong>Unable to load dashboard data</strong>
             <p>{dataError}</p>
-            Check that all three CSV files are inside
-            <code> public/data/</code> and that the development server is running.
+            <p>Check the files in public/data and refresh the page.</p>
           </div>
         )}
 
-        {loading ? (
-          <div className="loading-message">Loading energy analytics...</div>
-        ) : !dataError ? (
+        {!loading && !dataError && (
           <>
             <section className="metrics-grid">
               {metrics.map((metric) => (
-                <MetricCard key={metric.title} metric={metric} />
+                <MetricCard key={metric.title} {...metric} />
               ))}
             </section>
 
             <section className="content-grid" id="consumption">
               <div className="panel trend-panel">
-                <div className="panel-heading">
-                  <div>
-                    <h3>Consumption trends</h3>
-                    <p>
-                      {chartPeriod === "Monthly"
-                        ? "Monthly energy overview"
-                        : "Daily energy overview"}
-                    </p>
-                  </div>
-
+                <PanelHeading
+                  title="Consumption trends"
+                  subtitle={chartPeriod === "Monthly"
+                    ? "Monthly energy totals"
+                    : "Daily energy totals"}
+                >
                   <div className="period-filter">
                     <select
                       className="dashboard-select"
                       value={chartPeriod}
+                      aria-label="Select chart frequency"
                       onChange={(event) => setChartPeriod(event.target.value)}
-                      aria-label="Select chart period"
                     >
                       <option>Monthly</option>
                       <option>Daily</option>
                     </select>
                     <ChevronDown size={15} />
                   </div>
-                </div>
-
-                <TrendChart
-                  dailyData={filteredDaily}
-                  monthlyData={filteredMonthly}
-                  chartPeriod={chartPeriod}
-                />
+                </PanelHeading>
+                <TrendChart data={chartData} period={chartPeriod} />
               </div>
 
               <TariffCard tariffs={energyData.tariffs} />
@@ -540,74 +557,118 @@ function App() {
 
             <section className="bottom-grid">
               <div className="insight-panel">
-                <div className="insight-icon">
-                  <ArrowUpRight size={21} />
-                </div>
+                <div className="insight-icon"><ArrowUpRight size={21} /></div>
                 <div>
-                  <span className="insight-label">
-                    HIGHEST RECORDED DAILY ENERGY
-                  </span>
-                  <h3>
-                    {formatNumber(highestDay?.total_energy_kwh)} kWh
-                  </h3>
-                  <p>
-                    {highestDay
-                      ? `${formatDate(highestDay.date)} · Dataset-wide daily total`
-                      : "No daily data available"}
-                  </p>
+                  <span className="insight-label">HIGHEST DAILY ENERGY IN SELECTION</span>
+                  <h3>{number(highestDay?.total_energy_kwh)} kWh</h3>
+                  <p>{highestDay ? dateLabel(highestDay.date) : "No data available"}</p>
                 </div>
               </div>
-
               <div className="insight-panel">
-                <div className="insight-icon muted">
-                  <ArrowDownRight size={21} />
-                </div>
+                <div className="insight-icon muted"><ArrowDownRight size={21} /></div>
                 <div>
-                  <span className="insight-label">
-                    LOWEST RECORDED DAILY ENERGY
-                  </span>
-                  <h3>
-                    {formatNumber(lowestDay?.total_energy_kwh)} kWh
-                  </h3>
+                  <span className="insight-label">LOWEST DAILY ENERGY IN SELECTION</span>
+                  <h3>{number(lowestDay?.total_energy_kwh)} kWh</h3>
                   <p>
                     {lowestDay
-                      ? `${formatDate(lowestDay.date)} · Check coverage for this date`
-                      : "No daily data available"}
+                      ? `${dateLabel(lowestDay.date)} · Check coverage for partial dates`
+                      : "No data available"}
                   </p>
                 </div>
               </div>
             </section>
 
-            <section id="households" className="dashboard-info-section">
-              <h3>Household coverage</h3>
-              <p>
-                Average daily households represented in the processed data:{" "}
-                <strong>{formatNumber(averageHouseholds, 0)}</strong>.
+            <section className="panel section-panel" id="households">
+              <PanelHeading
+                title="Household analytics"
+                subtitle="Coverage and average daily energy per household"
+              />
+              <div className="household-grid">
+                <div className="household-stat">
+                  <span>Average households per day</span>
+                  <strong>{number(averageHouseholds, 0)}</strong>
+                </div>
+                <div className="household-stat">
+                  <span>Average energy per household</span>
+                  <strong>
+                    {number(
+                      filteredDaily.length
+                        ? filteredDaily.reduce(
+                            (sum, row) =>
+                              sum + Number(row.energy_per_household_kwh || 0),
+                            0
+                          ) / filteredDaily.length
+                        : 0
+                    )} kWh
+                  </strong>
+                </div>
+                <div className="household-stat">
+                  <span>Dates represented</span>
+                  <strong>{filteredDaily.length}</strong>
+                </div>
+              </div>
+              <p className="panel-footnote">
+                Household averages are calculated from the daily summary rows.
+                They are not individual household profiles.
               </p>
             </section>
 
-            <section id="forecast" className="dashboard-info-section">
-              <h3>Forecasting</h3>
-              <p>
-                Forecasting is not yet connected. This section can later display
-                predicted energy consumption from your forecasting model.
-              </p>
+            <section className="panel section-panel" id="forecast">
+              <PanelHeading
+                title="Forecasting"
+                subtitle="Forecast readiness"
+              />
+              <div className="forecast-status">
+                <div className="forecast-icon"><Activity size={24} /></div>
+                <div>
+                  <h4>No forecast model connected</h4>
+                  <p>
+                    This dashboard currently displays historical observations.
+                    Connect a trained forecasting model or export its predictions
+                    to a forecast dataset before displaying predicted values.
+                  </p>
+                </div>
+              </div>
             </section>
 
-            <section id="settings" className="dashboard-info-section">
-              <h3>Settings</h3>
-              <p>
-                Dashboard date filter: <strong>{dateRange}</strong>. Chart
-                frequency: <strong>{chartPeriod}</strong>.
-              </p>
+            <section className="panel section-panel" id="settings">
+              <PanelHeading
+                title="Dashboard settings"
+                subtitle="Current view and dataset details"
+              />
+              <div className="settings-grid">
+                <div>
+                  <span>Date range</span>
+                  <strong>{dateRange}</strong>
+                </div>
+                <div>
+                  <span>Chart frequency</span>
+                  <strong>{chartPeriod}</strong>
+                </div>
+                <div>
+                  <span>Daily summary rows</span>
+                  <strong>{energyData.daily.length}</strong>
+                </div>
+                <div>
+                  <span>Monthly summary rows</span>
+                  <strong>{energyData.monthly.length}</strong>
+                </div>
+              </div>
+              <button
+                className="secondary-button"
+                onClick={() => {
+                  setDateRange("Full dataset");
+                  setChartPeriod("Monthly");
+                }}
+              >
+                Reset filters
+              </button>
             </section>
           </>
-        ) : null}
+        )}
 
         <footer className="footer">
-          <span>
-            <Zap size={14} /> GRID_PULSE
-          </span>
+          <span><Zap size={14} /> GRID_PULSE</span>
           <span>Data engineering · Energy intelligence</span>
         </footer>
       </main>
