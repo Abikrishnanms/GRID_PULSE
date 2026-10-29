@@ -1,0 +1,3 @@
+tariff_type,total_energy_kwh,average_energy_per_record_kwh,household_date_records,dates_present,households_present,energy_share_percent
+Std,28833441.023514226,10.281588853817828,2804376,829,4438,81.12995040786717
+ToU,6706382.282871234,9.498761779466273,706027,829,1123,18.87004959213254
