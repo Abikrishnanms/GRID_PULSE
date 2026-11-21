@@ -1,6 +1,8 @@
 
 import "./App.css";
 import { useEffect, useMemo, useState } from "react";
+import HomeProfile from "./components/HomeProfile";
+
 import {
   Activity,
   ArrowDownRight,
@@ -17,6 +19,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+
 import {
   ResponsiveContainer,
   AreaChart,
@@ -28,7 +31,13 @@ import {
   YAxis,
   Tooltip,
 } from "recharts";
+
 import { loadEnergyData } from "./services/energyData";
+import ApplianceManager from "./components/ApplianceManager";
+
+// --------------------------------------------------
+// FORMAT HELPERS
+// --------------------------------------------------
 
 const number = (value, digits = 2) =>
   Number(value || 0).toLocaleString("en-IN", {
@@ -37,38 +46,95 @@ const number = (value, digits = 2) =>
 
 const compact = (value) => {
   const n = Number(value || 0);
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(n) >= 1_000) return `${(n / 1_000).toFixed(2)}K`;
+
+  if (Math.abs(n) >= 1_000_000) {
+    return `${(n / 1_000_000).toFixed(2)}M`;
+  }
+
+  if (Math.abs(n) >= 1_000) {
+    return `${(n / 1_000).toFixed(2)}K`;
+  }
+
   return number(n);
 };
 
 const dateLabel = (value) => {
   if (!value) return "—";
-  return new Date(`${value}T12:00:00`).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+
+  return new Date(`${value}T12:00:00`).toLocaleDateString(
+    "en-IN",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  );
 };
 
 const monthLabel = (value) => {
   if (!value) return "—";
-  return new Date(`${value.slice(0, 7)}-02T12:00:00`).toLocaleDateString(
-    "en-IN",
-    { month: "short", year: "2-digit" }
-  );
+
+  return new Date(
+    `${value.slice(0, 7)}-02T12:00:00`
+  ).toLocaleDateString("en-IN", {
+    month: "short",
+    year: "2-digit",
+  });
 };
 
+// --------------------------------------------------
+// SIDEBAR NAVIGATION
+// --------------------------------------------------
+
 const sections = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "consumption", label: "Consumption", icon: BarChart3 },
-  { id: "tariffs", label: "Tariff analysis", icon: Zap },
-  { id: "households", label: "Households", icon: House },
-  { id: "forecast", label: "Forecasting", icon: Activity },
-  { id: "settings", label: "Settings", icon: Settings },
+  {
+    id: "overview",
+    label: "Overview",
+    icon: LayoutDashboard,
+  },
+  {
+    id: "consumption",
+    label: "Consumption",
+    icon: BarChart3,
+  },
+  {
+    id: "tariffs",
+    label: "Tariff analysis",
+    icon: Zap,
+  },
+  {
+    id: "appliances",
+    label: "My Appliances",
+    icon: BatteryCharging,
+  },
+  {
+    id: "households",
+    label: "Households",
+    icon: House,
+  },
+  {
+    id: "forecast",
+    label: "Forecasting",
+    icon: Activity,
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: Settings,
+  },
+  {
+  id: "home",
+  label: "My Home",
+  icon: House,
+  },
 ];
 
-function Sidebar({ activeSection, setActiveSection, mobileOpen, setMobileOpen }) {
+function Sidebar({
+  activeSection,
+  setActiveSection,
+  mobileOpen,
+  setMobileOpen,
+}) {
   return (
     <>
       {mobileOpen && (
@@ -78,13 +144,22 @@ function Sidebar({ activeSection, setActiveSection, mobileOpen, setMobileOpen })
           onClick={() => setMobileOpen(false)}
         />
       )}
-      <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
+
+      <aside
+        className={`sidebar ${
+          mobileOpen ? "sidebar-open" : ""
+        }`}
+      >
         <div className="brand">
-          <div className="brand-icon"><Zap size={23} /></div>
+          <div className="brand-icon">
+            <Zap size={23} />
+          </div>
+
           <div>
             <h2>GRID_PULSE</h2>
             <span>ENERGY INTELLIGENCE</span>
           </div>
+
           <button
             className="mobile-close icon-button"
             onClick={() => setMobileOpen(false)}
@@ -95,11 +170,17 @@ function Sidebar({ activeSection, setActiveSection, mobileOpen, setMobileOpen })
         </div>
 
         <div className="nav-label">WORKSPACE</div>
-        <nav className="navigation" aria-label="Main navigation">
+
+        <nav
+          className="navigation"
+          aria-label="Main navigation"
+        >
           {sections.map(({ id, label, icon: Icon }) => (
             <a
               key={id}
-              className={`nav-item ${activeSection === id ? "active" : ""}`}
+              className={`nav-item ${
+                activeSection === id ? "active" : ""
+              }`}
               href={`#${id}`}
               onClick={() => {
                 setActiveSection(id);
@@ -115,93 +196,191 @@ function Sidebar({ activeSection, setActiveSection, mobileOpen, setMobileOpen })
         <div className="sidebar-bottom">
           <div className="eco-card">
             <Leaf size={21} />
+
             <strong>Smarter energy insights</strong>
-            <p>Explore consumption patterns and make data-informed decisions.</p>
+
+            <p>
+              Explore consumption patterns and make
+              data-informed decisions.
+            </p>
           </div>
-          <span className="sidebar-version">GRID_PULSE · Analytics</span>
+
+          <span className="sidebar-version">
+            GRID_PULSE · Analytics
+          </span>
         </div>
       </aside>
     </>
   );
 }
 
-function MetricCard({ title, value, unit, caption, icon: Icon }) {
+// --------------------------------------------------
+// KPI METRIC CARD
+// --------------------------------------------------
+
+function MetricCard({
+  title,
+  value,
+  unit,
+  caption,
+  icon: Icon,
+}) {
   return (
     <article className="metric-card">
       <div className="metric-top">
         <span>{title}</span>
-        <div className="metric-icon"><Icon size={19} /></div>
+
+        <div className="metric-icon">
+          <Icon size={19} />
+        </div>
       </div>
+
       <div className="metric-value">
-        {value}<span>{unit}</span>
+        {value}
+        <span>{unit}</span>
       </div>
+
       <p className="metric-caption">{caption}</p>
     </article>
   );
 }
 
-function PanelHeading({ title, subtitle, children }) {
+// --------------------------------------------------
+// PANEL HEADING
+// --------------------------------------------------
+
+function PanelHeading({
+  title,
+  subtitle,
+  children,
+}) {
   return (
     <div className="panel-heading">
       <div>
         <h3>{title}</h3>
         <p>{subtitle}</p>
       </div>
+
       {children}
     </div>
   );
 }
 
-function EnergyTooltip({ active, payload, label, period }) {
+// --------------------------------------------------
+// CHART TOOLTIP
+// --------------------------------------------------
+
+function EnergyTooltip({
+  active,
+  payload,
+  label,
+  period,
+}) {
   if (!active || !payload?.length) return null;
 
   const displayedLabel =
-    period === "Monthly" ? monthLabel(label) : dateLabel(label);
+    period === "Monthly"
+      ? monthLabel(label)
+      : dateLabel(label);
 
   return (
     <div className="chart-tooltip">
       <strong>{displayedLabel}</strong>
+
       <p>{number(payload[0].value)} kWh</p>
     </div>
   );
 }
 
+// --------------------------------------------------
+// ENERGY TREND CHART
+// --------------------------------------------------
+
 function TrendChart({ data, period }) {
   if (!data.length) {
-    return <div className="empty-state">No data is available for this selection.</div>;
+    return (
+      <div className="empty-state">
+        No data is available for this selection.
+      </div>
+    );
   }
 
   return (
     <div className="chart-wrap">
       <div className="chart-legend">
         <span className="legend-dot" />
+
         Energy consumption
-        <span className="chart-note">Processed dataset</span>
+
+        <span className="chart-note">
+          Processed dataset
+        </span>
       </div>
 
       <div className="chart-canvas">
         <ResponsiveContainer width="100%" height="100%">
           {period === "Monthly" ? (
-            <AreaChart data={data} margin={{ top: 10, right: 12, left: 4, bottom: 4 }}>
+            <AreaChart
+              data={data}
+              margin={{
+                top: 10,
+                right: 12,
+                left: 4,
+                bottom: 4,
+              }}
+            >
               <defs>
-                <linearGradient id="energyFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#45d6ad" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#45d6ad" stopOpacity={0.02} />
+                <linearGradient
+                  id="energyFill"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor="#45d6ad"
+                    stopOpacity={0.35}
+                  />
+
+                  <stop
+                    offset="95%"
+                    stopColor="#45d6ad"
+                    stopOpacity={0.02}
+                  />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#25383d" strokeDasharray="3 3" />
+
+              <CartesianGrid
+                stroke="#25383d"
+                strokeDasharray="3 3"
+              />
+
               <XAxis
                 dataKey="month"
                 tickFormatter={monthLabel}
-                tick={{ fill: "#91a9ae", fontSize: 11 }}
+                tick={{
+                  fill: "#91a9ae",
+                  fontSize: 11,
+                }}
                 minTickGap={14}
               />
+
               <YAxis
-                tickFormatter={(value) => compact(value)}
-                tick={{ fill: "#91a9ae", fontSize: 11 }}
+                tickFormatter={compact}
+                tick={{
+                  fill: "#91a9ae",
+                  fontSize: 11,
+                }}
                 width={55}
               />
-              <Tooltip content={<EnergyTooltip period={period} />} />
+
+              <Tooltip
+                content={
+                  <EnergyTooltip period={period} />
+                }
+              />
+
               <Area
                 type="monotone"
                 dataKey="monthly_energy_kwh"
@@ -209,29 +388,59 @@ function TrendChart({ data, period }) {
                 stroke="#45d6ad"
                 strokeWidth={2.5}
                 fill="url(#energyFill)"
-                activeDot={{ r: 5, fill: "#45d6ad" }}
+                activeDot={{
+                  r: 5,
+                  fill: "#45d6ad",
+                }}
               />
             </AreaChart>
           ) : (
-            <BarChart data={data} margin={{ top: 10, right: 12, left: 4, bottom: 4 }}>
-              <CartesianGrid stroke="#25383d" strokeDasharray="3 3" />
+            <BarChart
+              data={data}
+              margin={{
+                top: 10,
+                right: 12,
+                left: 4,
+                bottom: 4,
+              }}
+            >
+              <CartesianGrid
+                stroke="#25383d"
+                strokeDasharray="3 3"
+              />
+
               <XAxis
                 dataKey="date"
                 tickFormatter={(value) =>
-                  new Date(`${value}T12:00:00`).toLocaleDateString("en-IN", {
+                  new Date(
+                    `${value}T12:00:00`
+                  ).toLocaleDateString("en-IN", {
                     day: "numeric",
                     month: "short",
                   })
                 }
-                tick={{ fill: "#91a9ae", fontSize: 11 }}
+                tick={{
+                  fill: "#91a9ae",
+                  fontSize: 11,
+                }}
                 minTickGap={18}
               />
+
               <YAxis
-                tickFormatter={(value) => compact(value)}
-                tick={{ fill: "#91a9ae", fontSize: 11 }}
+                tickFormatter={compact}
+                tick={{
+                  fill: "#91a9ae",
+                  fontSize: 11,
+                }}
                 width={55}
               />
-              <Tooltip content={<EnergyTooltip period={period} />} />
+
+              <Tooltip
+                content={
+                  <EnergyTooltip period={period} />
+                }
+              />
+
               <Bar
                 dataKey="total_energy_kwh"
                 name="Energy"
@@ -242,6 +451,7 @@ function TrendChart({ data, period }) {
           )}
         </ResponsiveContainer>
       </div>
+
       <p className="chart-caption">
         {period === "Monthly"
           ? "Monthly totals in kWh. Incomplete months reflect available dates."
@@ -251,14 +461,32 @@ function TrendChart({ data, period }) {
   );
 }
 
+// --------------------------------------------------
+// TARIFF ANALYSIS
+// --------------------------------------------------
+
 function TariffCard({ tariffs }) {
   const [showDetails, setShowDetails] = useState(false);
-  const standard = tariffs.find((row) => row.tariff_type === "Std");
-  const tou = tariffs.find((row) => row.tariff_type === "ToU");
+
+  const standard = tariffs.find(
+    (row) => row.tariff_type === "Std"
+  );
+
+  const tou = tariffs.find(
+    (row) => row.tariff_type === "ToU"
+  );
 
   const rows = [
-    { row: standard, label: "Standard tariff", type: "standard" },
-    { row: tou, label: "Time-of-use tariff", type: "tou" },
+    {
+      row: standard,
+      label: "Standard tariff",
+      type: "standard",
+    },
+    {
+      row: tou,
+      label: "Time-of-use tariff",
+      type: "tou",
+    },
   ];
 
   return (
@@ -269,23 +497,42 @@ function TariffCard({ tariffs }) {
       >
         <button
           className="icon-button"
-          aria-label={showDetails ? "Hide tariff details" : "Show tariff details"}
+          aria-label={
+            showDetails
+              ? "Hide tariff details"
+              : "Show tariff details"
+          }
           aria-expanded={showDetails}
-          onClick={() => setShowDetails((value) => !value)}
+          onClick={() =>
+            setShowDetails((value) => !value)
+          }
         >
-          <ChevronDown className={showDetails ? "rotate-icon" : ""} size={19} />
+          <ChevronDown
+            className={
+              showDetails ? "rotate-icon" : ""
+            }
+            size={19}
+          />
         </button>
       </PanelHeading>
 
       {rows.map(({ row, label, type }) => {
-        const share = Number(row?.energy_share_percent || 0);
+        const share = Number(
+          row?.energy_share_percent || 0
+        );
+
         return (
           <div className="tariff-row" key={type}>
             <div className="tariff-label">
-              <span className={`tariff-dot ${type}`} />
+              <span
+                className={`tariff-dot ${type}`}
+              />
+
               <span>{label}</span>
+
               <strong>{share.toFixed(2)}%</strong>
             </div>
+
             <div
               className="progress-track"
               role="progressbar"
@@ -296,7 +543,12 @@ function TariffCard({ tariffs }) {
             >
               <div
                 className={`progress-fill ${type}-fill`}
-                style={{ width: `${Math.max(0, Math.min(100, share))}%` }}
+                style={{
+                  width: `${Math.max(
+                    0,
+                    Math.min(100, share)
+                  )}%`,
+                }}
               />
             </div>
           </div>
@@ -306,14 +558,22 @@ function TariffCard({ tariffs }) {
       {showDetails && (
         <div className="tariff-details">
           {rows.map(({ row, label, type }) => (
-            <div key={type} className="detail-row">
+            <div
+              key={type}
+              className="detail-row"
+            >
               <span>{label} energy</span>
-              <strong>{number(row?.total_energy_kwh)} kWh</strong>
+
+              <strong>
+                {number(row?.total_energy_kwh)} kWh
+              </strong>
             </div>
           ))}
+
           <p>
-            Shares describe energy recorded under each tariff. They do not
-            establish that one tariff causes higher or lower consumption.
+            Shares describe energy recorded under each
+            tariff. They do not establish that one
+            tariff causes higher or lower consumption.
           </p>
         </div>
       )}
@@ -325,31 +585,54 @@ function TariffCard({ tariffs }) {
   );
 }
 
+// --------------------------------------------------
+// MAIN APPLICATION
+// --------------------------------------------------
+
 function App() {
   const [energyData, setEnergyData] = useState({
     daily: [],
     monthly: [],
     tariffs: [],
   });
+
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState("");
-  const [dateRange, setDateRange] = useState("Full dataset");
-  const [chartPeriod, setChartPeriod] = useState("Monthly");
-  const [activeSection, setActiveSection] = useState("overview");
-  const [mobileOpen, setMobileOpen] = useState(false);
 
+  const [dateRange, setDateRange] =
+    useState("Full dataset");
+
+  const [chartPeriod, setChartPeriod] =
+    useState("Monthly");
+
+  const [activeSection, setActiveSection] =
+    useState("overview");
+
+  const [mobileOpen, setMobileOpen] =
+    useState(false);
+
+  // LOAD HISTORICAL ENERGY DATA
   useEffect(() => {
     let cancelled = false;
 
     loadEnergyData()
       .then((data) => {
-        if (!cancelled) setEnergyData(data);
+        if (!cancelled) {
+          setEnergyData(data);
+        }
       })
       .catch((error) => {
-        if (!cancelled) setDataError(error.message || "Unable to load CSV data.");
+        if (!cancelled) {
+          setDataError(
+            error.message ||
+            "Unable to load CSV data."
+          );
+        }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
 
     return () => {
@@ -357,74 +640,130 @@ function App() {
     };
   }, []);
 
+  // FILTER DAILY DATA
   const filteredDaily = useMemo(() => {
     const daily = energyData.daily;
-    if (!daily.length || dateRange === "Full dataset") return daily;
 
-    const lastDate = new Date(`${daily[daily.length - 1].date}T12:00:00`);
+    if (
+      !daily.length ||
+      dateRange === "Full dataset"
+    ) {
+      return daily;
+    }
+
+    const lastDate = new Date(
+      `${daily[daily.length - 1].date}T12:00:00`
+    );
+
     const cutoff = new Date(lastDate);
 
     if (dateRange === "Last 12 months") {
-      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      cutoff.setFullYear(
+        cutoff.getFullYear() - 1
+      );
     } else {
       cutoff.setDate(
-        cutoff.getDate() - (dateRange === "Last 30 days" ? 30 : 90) + 1
+        cutoff.getDate() -
+          (dateRange === "Last 30 days" ? 30 : 90) +
+          1
       );
     }
 
     return daily.filter(
-      (row) => new Date(`${row.date}T12:00:00`) >= cutoff
+      (row) =>
+        new Date(`${row.date}T12:00:00`) >= cutoff
     );
   }, [energyData.daily, dateRange]);
 
+  // FILTER MONTHLY DATA
   const filteredMonthly = useMemo(() => {
-    if (dateRange === "Full dataset") return energyData.monthly;
-    if (!filteredDaily.length) return [];
+    if (dateRange === "Full dataset") {
+      return energyData.monthly;
+    }
 
-    const firstMonth = filteredDaily[0].date.slice(0, 7);
-    const lastMonth = filteredDaily[filteredDaily.length - 1].date.slice(0, 7);
+    if (!filteredDaily.length) {
+      return [];
+    }
+
+    const firstMonth =
+      filteredDaily[0].date.slice(0, 7);
+
+    const lastMonth =
+      filteredDaily[
+        filteredDaily.length - 1
+      ].date.slice(0, 7);
 
     return energyData.monthly.filter((row) => {
       const month = row.month.slice(0, 7);
-      return month >= firstMonth && month <= lastMonth;
+
+      return (
+        month >= firstMonth &&
+        month <= lastMonth
+      );
     });
-  }, [energyData.monthly, filteredDaily, dateRange]);
+  }, [
+    energyData.monthly,
+    filteredDaily,
+    dateRange,
+  ]);
 
-  const chartData = chartPeriod === "Monthly" ? filteredMonthly : filteredDaily;
+  // SELECT CHART DATA
+  const chartData =
+    chartPeriod === "Monthly"
+      ? filteredMonthly
+      : filteredDaily;
 
+  // CALCULATE TOTAL ENERGY
   const totalEnergy = filteredDaily.reduce(
-    (sum, row) => sum + Number(row.total_energy_kwh || 0),
+    (sum, row) =>
+      sum + Number(row.total_energy_kwh || 0),
     0
   );
 
+  // AVERAGE DAILY ENERGY
   const averageDailyEnergy = filteredDaily.length
     ? totalEnergy / filteredDaily.length
     : 0;
 
+  // AVERAGE HOUSEHOLDS
   const averageHouseholds = filteredDaily.length
     ? filteredDaily.reduce(
-        (sum, row) => sum + Number(row.households || 0),
+        (sum, row) =>
+          sum + Number(row.households || 0),
         0
       ) / filteredDaily.length
     : 0;
 
+  // TOTAL READINGS
   const totalReadings = filteredDaily.reduce(
-    (sum, row) => sum + Number(row.total_readings || 0),
+    (sum, row) =>
+      sum + Number(row.total_readings || 0),
     0
   );
 
+  // HIGHEST CONSUMPTION DAY
   const highestDay = filteredDaily.reduce(
     (best, row) =>
-      !best || row.total_energy_kwh > best.total_energy_kwh ? row : best,
+      !best ||
+      row.total_energy_kwh >
+        best.total_energy_kwh
+        ? row
+        : best,
     null
   );
 
+  // LOWEST CONSUMPTION DAY
   const lowestDay = filteredDaily.reduce(
     (best, row) =>
-      !best || row.total_energy_kwh < best.total_energy_kwh ? row : best,
+      !best ||
+      row.total_energy_kwh <
+        best.total_energy_kwh
+        ? row
+        : best,
     null
   );
 
+  // KPI CARDS
   const metrics = [
     {
       title: "Total energy",
@@ -456,8 +795,13 @@ function App() {
     },
   ];
 
+  // ------------------------------------------------
+  // RENDER
+  // ------------------------------------------------
+
   return (
     <div className="app-shell">
+
       <Sidebar
         activeSection={activeSection}
         setActiveSection={setActiveSection}
@@ -465,7 +809,13 @@ function App() {
         setMobileOpen={setMobileOpen}
       />
 
-      <main className="main-content" id="overview">
+      <main
+        className="main-content"
+        id="overview"
+      >
+
+        {/* TOP NAVIGATION */}
+
         <header className="topbar">
           <div className="breadcrumb">
             <button
@@ -475,100 +825,204 @@ function App() {
             >
               <Menu size={21} />
             </button>
-            Workspace <span>/</span> {sections.find((s) => s.id === activeSection)?.label}
+
+            Workspace
+
+            <span>/</span>
+
+            {
+              sections.find(
+                (section) =>
+                  section.id === activeSection
+              )?.label
+            }
           </div>
+
           <div className="topbar-right">
-            <span className={`status-dot ${dataError ? "status-error" : ""}`} />
-            {loading ? "Loading data" : dataError ? "Data unavailable" : "Processed dataset"}
+            <span
+              className={`status-dot ${
+                dataError ? "status-error" : ""
+              }`}
+            />
+
+            {loading
+              ? "Loading data"
+              : dataError
+                ? "Data unavailable"
+                : "Processed dataset"}
+
             <div className="avatar">GP</div>
           </div>
         </header>
 
+        {/* PAGE HEADING */}
+
         <section className="page-heading">
           <div>
-            <p className="eyebrow">ENERGY ANALYTICS PLATFORM</p>
+            <p className="eyebrow">
+              ENERGY ANALYTICS PLATFORM
+            </p>
+
             <h1>Energy overview</h1>
+
             <p className="page-description">
-              Understand consumption patterns across the available household energy data.
+              Understand consumption patterns across
+              the available household energy data.
             </p>
           </div>
 
           <div className="date-filter">
             <CalendarDays size={17} />
+
             <select
               className="dashboard-select"
               aria-label="Select date range"
               value={dateRange}
-              onChange={(event) => setDateRange(event.target.value)}
+              onChange={(event) =>
+                setDateRange(event.target.value)
+              }
             >
               <option>Full dataset</option>
               <option>Last 30 days</option>
               <option>Last 90 days</option>
               <option>Last 12 months</option>
             </select>
+
             <ChevronDown size={16} />
           </div>
         </section>
 
-        {loading && <div className="loading-message">Loading energy analytics…</div>}
+        {/* LOADING STATE */}
+
+        {loading && (
+          <div className="loading-message">
+            Loading energy analytics…
+          </div>
+        )}
+
+        {/* ERROR STATE */}
 
         {dataError && (
-          <div className="data-error" role="alert">
-            <strong>Unable to load dashboard data</strong>
+          <div
+            className="data-error"
+            role="alert"
+          >
+            <strong>
+              Unable to load dashboard data
+            </strong>
+
             <p>{dataError}</p>
-            <p>Check the files in public/data and refresh the page.</p>
+
+            <p>
+              Check the files in public/data and
+              refresh the page.
+            </p>
           </div>
         )}
 
         {!loading && !dataError && (
           <>
+
+            {/* KPI METRICS */}
+
             <section className="metrics-grid">
               {metrics.map((metric) => (
-                <MetricCard key={metric.title} {...metric} />
+                <MetricCard
+                  key={metric.title}
+                  {...metric}
+                />
               ))}
             </section>
 
-            <section className="content-grid" id="consumption">
+            {/* CONSUMPTION AND TARIFF */}
+
+            <section
+              className="content-grid"
+              id="consumption"
+            >
               <div className="panel trend-panel">
                 <PanelHeading
                   title="Consumption trends"
-                  subtitle={chartPeriod === "Monthly"
-                    ? "Monthly energy totals"
-                    : "Daily energy totals"}
+                  subtitle={
+                    chartPeriod === "Monthly"
+                      ? "Monthly energy totals"
+                      : "Daily energy totals"
+                  }
                 >
                   <div className="period-filter">
                     <select
                       className="dashboard-select"
                       value={chartPeriod}
                       aria-label="Select chart frequency"
-                      onChange={(event) => setChartPeriod(event.target.value)}
+                      onChange={(event) =>
+                        setChartPeriod(
+                          event.target.value
+                        )
+                      }
                     >
                       <option>Monthly</option>
                       <option>Daily</option>
                     </select>
+
                     <ChevronDown size={15} />
                   </div>
                 </PanelHeading>
-                <TrendChart data={chartData} period={chartPeriod} />
+
+                <TrendChart
+                  data={chartData}
+                  period={chartPeriod}
+                />
               </div>
 
-              <TariffCard tariffs={energyData.tariffs} />
+              <TariffCard
+                tariffs={energyData.tariffs}
+              />
             </section>
 
+            {/* HIGH AND LOW CONSUMPTION */}
+
             <section className="bottom-grid">
+
               <div className="insight-panel">
-                <div className="insight-icon"><ArrowUpRight size={21} /></div>
+                <div className="insight-icon">
+                  <ArrowUpRight size={21} />
+                </div>
+
                 <div>
-                  <span className="insight-label">HIGHEST DAILY ENERGY IN SELECTION</span>
-                  <h3>{number(highestDay?.total_energy_kwh)} kWh</h3>
-                  <p>{highestDay ? dateLabel(highestDay.date) : "No data available"}</p>
+                  <span className="insight-label">
+                    HIGHEST DAILY ENERGY IN SELECTION
+                  </span>
+
+                  <h3>
+                    {number(
+                      highestDay?.total_energy_kwh
+                    )} kWh
+                  </h3>
+
+                  <p>
+                    {highestDay
+                      ? dateLabel(highestDay.date)
+                      : "No data available"}
+                  </p>
                 </div>
               </div>
+
               <div className="insight-panel">
-                <div className="insight-icon muted"><ArrowDownRight size={21} /></div>
+                <div className="insight-icon muted">
+                  <ArrowDownRight size={21} />
+                </div>
+
                 <div>
-                  <span className="insight-label">LOWEST DAILY ENERGY IN SELECTION</span>
-                  <h3>{number(lowestDay?.total_energy_kwh)} kWh</h3>
+                  <span className="insight-label">
+                    LOWEST DAILY ENERGY IN SELECTION
+                  </span>
+
+                  <h3>
+                    {number(
+                      lowestDay?.total_energy_kwh
+                    )} kWh
+                  </h3>
+
                   <p>
                     {lowestDay
                       ? `${dateLabel(lowestDay.date)} · Check coverage for partial dates`
@@ -576,101 +1030,177 @@ function App() {
                   </p>
                 </div>
               </div>
+
             </section>
 
-            <section className="panel section-panel" id="households">
+            {/* HOME PROFILE */}
+
+<HomeProfile />
+
+{/* APPLIANCE MANAGER */}
+
+<ApplianceManager />
+
+            {/* HISTORICAL HOUSEHOLD ANALYTICS */}
+
+            <section
+              className="panel section-panel"
+              id="households"
+            >
               <PanelHeading
-                title="Household analytics"
+                title="Historical household analytics"
                 subtitle="Coverage and average daily energy per household"
               />
+
               <div className="household-grid">
+
                 <div className="household-stat">
-                  <span>Average households per day</span>
-                  <strong>{number(averageHouseholds, 0)}</strong>
+                  <span>
+                    Average households per day
+                  </span>
+
+                  <strong>
+                    {number(averageHouseholds, 0)}
+                  </strong>
                 </div>
+
                 <div className="household-stat">
-                  <span>Average energy per household</span>
+                  <span>
+                    Average energy per household
+                  </span>
+
                   <strong>
                     {number(
                       filteredDaily.length
                         ? filteredDaily.reduce(
                             (sum, row) =>
-                              sum + Number(row.energy_per_household_kwh || 0),
+                              sum +
+                              Number(
+                                row.energy_per_household_kwh ||
+                                0
+                              ),
                             0
                           ) / filteredDaily.length
                         : 0
                     )} kWh
                   </strong>
                 </div>
+
                 <div className="household-stat">
                   <span>Dates represented</span>
-                  <strong>{filteredDaily.length}</strong>
+
+                  <strong>
+                    {filteredDaily.length}
+                  </strong>
                 </div>
+
               </div>
+
               <p className="panel-footnote">
-                Household averages are calculated from the daily summary rows.
-                They are not individual household profiles.
+                These are historical dataset averages,
+                not individual household profiles.
               </p>
             </section>
 
-            <section className="panel section-panel" id="forecast">
+            {/* FORECASTING */}
+
+            <section
+              className="panel section-panel"
+              id="forecast"
+            >
               <PanelHeading
                 title="Forecasting"
                 subtitle="Forecast readiness"
               />
+
               <div className="forecast-status">
-                <div className="forecast-icon"><Activity size={24} /></div>
+                <div className="forecast-icon">
+                  <Activity size={24} />
+                </div>
+
                 <div>
-                  <h4>No forecast model connected</h4>
+                  <h4>
+                    No historical forecast model connected
+                  </h4>
+
                   <p>
-                    This dashboard currently displays historical observations.
-                    Connect a trained forecasting model or export its predictions
-                    to a forecast dataset before displaying predicted values.
+                    This dashboard currently displays
+                    historical observations. Appliance-based
+                    estimates are available in My Appliances.
+                    A historical forecasting model will be
+                    implemented separately.
                   </p>
                 </div>
               </div>
             </section>
 
-            <section className="panel section-panel" id="settings">
+            {/* SETTINGS */}
+
+            <section
+              className="panel section-panel"
+              id="settings"
+            >
               <PanelHeading
                 title="Dashboard settings"
                 subtitle="Current view and dataset details"
               />
+
               <div className="settings-grid">
+
                 <div>
                   <span>Date range</span>
                   <strong>{dateRange}</strong>
                 </div>
+
                 <div>
                   <span>Chart frequency</span>
                   <strong>{chartPeriod}</strong>
                 </div>
+
                 <div>
                   <span>Daily summary rows</span>
-                  <strong>{energyData.daily.length}</strong>
+                  <strong>
+                    {energyData.daily.length}
+                  </strong>
                 </div>
+
                 <div>
                   <span>Monthly summary rows</span>
-                  <strong>{energyData.monthly.length}</strong>
+                  <strong>
+                    {energyData.monthly.length}
+                  </strong>
                 </div>
+
               </div>
+
               <button
                 className="secondary-button"
                 onClick={() => {
                   setDateRange("Full dataset");
                   setChartPeriod("Monthly");
+                  setActiveSection("overview");
                 }}
               >
                 Reset filters
               </button>
             </section>
+
           </>
         )}
 
+        {/* FOOTER */}
+
         <footer className="footer">
-          <span><Zap size={14} /> GRID_PULSE</span>
-          <span>Data engineering · Energy intelligence</span>
+          <span>
+            <Zap size={14} />
+            GRID_PULSE
+          </span>
+
+          <span>
+            Data engineering · Energy intelligence
+          </span>
         </footer>
+
       </main>
     </div>
   );
