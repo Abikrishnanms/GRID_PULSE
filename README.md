@@ -1,501 +1,184 @@
-# GridPulse --- Big Data-Driven Household Energy Analytics and Personalized Energy Optimization Platform
+# GridPulse — Big Data-Driven Household Energy Analytics and Personalised Energy Optimisation Platform
 
-> **Project status:** Foundation and sample data-cleaning pipeline
-> implemented. Full-dataset processing and the downstream Kafka,
-> streaming, analytics, ML, recommendation, API, database, and dashboard
-> components are not yet confirmed complete.
+> **Academic Project Status:** The distributed PySpark data-cleaning, deduplication and aggregation pipeline, historical machine learning forecasting models, personalised appliance recommendation engine, energy savings simulator, Starlette REST API, and unified React dashboard are fully implemented and verified. Downstream Apache Kafka streaming, PostgreSQL/TimescaleDB storage, and enterprise Power BI dashboards represent planned architectural extensions.
 
-GridPulse aims to build a Big Data-driven household energy analytics and
-personalized energy optimization platform. It is being developed by a
-three-member team using GitHub and Codex, following an incremental
-workflow: **Understand → Ask Codex → Review → Test → Commit → Push →
-Integrate**.
+---
 
-The team will first build and understand the shared foundation, then
-gradually specialize. Codex is used as a coding assistant; the team
-remains responsible for architectural decisions, understanding the code,
-testing, and reviewing changes.
+## 1. Project Overview
 
-## Dataset
+Residential electricity consumption exhibits substantial temporal variability and complex appliance-level usage dynamics. In typical residential environments, consumers lack visibility into granular consumption drivers and actionable guidance to eliminate energy waste, while grid operators face volatile demand profiles.
 
-### Google Drive dataset link
+GridPulse addresses these challenges as a Big Data-driven household energy analytics and personalised energy optimisation platform. Developed collaboratively by a three-member university engineering team, the platform bridges large-scale distributed smart meter processing with predictive machine learning forecasting, transparent appliance energy profiling, and interactive what-if savings simulations inside a single unified dashboard interface.
 
-**Dataset folder/file:** [**https://drive.google.com/drive/folders/1ZRkrHQ5ZaS8O0L-t6c94bwIi7vaB7cEl?usp=sharing**]
+### Main Objectives and Capabilities
+* **Scalable Data Ingestion & Quality Auditing:** Scalable distributed processing, cleaning, schema validation, and multi-column deduplication of multi-gigabyte smart meter readings.
+* **Chronological Demand Forecasting:** Machine learning-based time-series forecasting to establish baseline household consumption and predict demand patterns.
+* **Appliance Consumption Profiling:** Mathematical attribution of household electricity consumption by appliance with automatic high-impact load identification.
+* **Safety-Constrained Optimization:** Actionable curtailment recommendations with built-in safety suppression for continuous and essential loads (refrigeration, medical equipment).
+* **Interactive What-If Simulation:** Pure, non-mutating scenario simulations allowing householders to quantify the energy and financial impacts of behavioral adjustments.
 
-Replace the placeholder URL with the Google Drive sharing link for the
-dataset. Ensure intended collaborators have permission to access it. Do
-not make the dataset public solely for convenience.
+---
 
-### Dataset information
+## 2. Dataset Information
 
--   **Dataset:** London Smart Meter Energy Consumption Dataset
--   **Expected raw file:** `CC_LCL-FullData.csv`
--   **Format:** CSV
--   **Content:** Historical half-hourly household electricity readings
--   **Size observed in Codespaces:** approximately 7.6 GB
--   **Google Drive size reported:** 7.96 GB
--   **Observed line count:** 159,394,207 lines, including the header
--   **Important:** This is historical data, not a live data feed. If
-    used to demonstrate streaming, the records should be described as a
-    historical replay or simulated stream.
+### Dataset Specifications
+* **Dataset Name:** London Smart Meter Energy Consumption Dataset (Low Carbon London project).
+* **Primary Source:** UK Power Networks / London Datastore.
+* **Dataset Access Link:** [Download/access the dataset](https://drive.google.com/drive/folders/1ZRkrHQ5ZaS8O0L-t6c94bwIi7vaB7cEl?usp=sharing)
+* **Raw Filename & Format:** `CC_LCL-FullData.csv` (CSV format, ~7.6 GB uncompressed, ~7.96 GB reported on Google Drive).
+* **Temporal Coverage:** Historical half-hourly smart meter readings collected between November 2011 and February 2014. The last complete actual observation used for daily aggregation and modelling is **27 February 2014** (partial readings on 28 February 2014 were dropped during data preparation).
 
-The Google Drive copy has not yet been confirmed byte-for-byte identical
-to the Codespaces copy, and authenticated Drive access from Codespaces
-has not yet been configured. Do not download another copy into
-Codespaces until the storage approach is decided.
+### PySpark Processing Audit
+* **Raw Records Processed:** 167,932,474
+* **Valid Silver Records:** 167,926,914 (99.9967%)
+* **Rejected Malformed Records:** 5,560 (0.0033%, isolated into a quality Parquet layer due to missing or invalid energy readings)
+* **Multi-Column Duplicates Removed:** 115,453 (0.0688%, identified via a 4-column composite key grouping)
+* **Clean Deduplicated Silver Records:** 167,811,461 ($167,926,914 - 115,453 = 167,811,461$)
 
-Large datasets and generated outputs are excluded from Git through the
-repository's `data/` ignore rule. GitHub is for source code,
-documentation, configuration, tests, and Git history---not for storing
-the full raw dataset.
+### Record Count Discrepancy Note
+An initial exploratory inspection via `wc -l` in a local development environment observed 159,394,207 lines (including header), whereas the complete PySpark ingestion job in Google Colab processed 167,932,474 records. This discrepancy represents two separate empirical observations across different execution environments and is documented without speculative explanation.
 
-## Project Architecture
+### Licensing and Data Handling Warning
+The dataset is associated with the Low Carbon London project. Because the exact redistribution terms for the hosted Google Drive archive remain unconfirmed, raw data files are excluded from Git version control via `.gitignore` and must not be distributed publicly without confirming licensing terms.
 
-The project's planned end-to-end architecture, as defined in the team
-working guide and PRD, is:
+---
 
-``` text
-Data Sources
-    |
-    v
-Kafka
-    |
-    v
-Spark Structured Streaming
-    |
-    v
-Data Lake
-    |
-    v
-Apache Spark Analytics
-    |
-    v
-Analytics / Machine Learning
-    |
-    v
-Recommendations
-    |
-    v
-Savings Engine
-    |
-    v
-PostgreSQL
-    |
-    v
-Power BI
+## 3. System Architecture
+
+### Target / Planned Architecture (PRD Specification)
+```text
+Smart Meters ──► Apache Kafka ──► Spark Structured Streaming ──► Data Lake (Bronze/Silver/Gold)
+                                                                            │
+React Dashboard ◄── TimescaleDB ◄── Savings Simulator ◄── ML Forecaster ◄──┘
 ```
 
-The current implemented data-engineering milestone is the initial
-foundation:
+### Implemented Architecture
+```text
+[ Big Data Processing Layer (PySpark Batch / Google Colab) ]
+  Raw CSV (167.9M rows) ──► Schema Enforcement (FAILFAST) ──► Silver Parquet (167.9M)
+                                                                    │
+                            Gold Analytical Tables  ◄── Deduplication Engine (167.8M clean)
+                            (hourly/daily/household)
+                                       │
+                                       ▼ (Pre-computed CSV exports)
+[ Machine Learning & Analytics Layer (Python) ]
+  Prepared Daily Energy (821 days) ──► Random Forest Regressor (Trained Model Artifact)
+                                   ├──► 30-Day Recursive Historical Forecaster (28 Feb – 29 Mar 2014)
+                                   └──► 5-Origin Rolling Backtesting Engine (150 days)
 
-``` text
-Raw Energy CSV
-    |
-    v
-PySpark Reader
-    |
-    v
-Schema / Data-Quality Validation
-    |
-    +---------------------------+
-    |                           |
-    v                           v
-Valid Records             Rejected Records
-    |                           |
-    v                           v
-Silver Parquet Output     Quality Parquet Output
+[ Local Backend REST Service (Starlette + Uvicorn) ]
+  POST /api/recommendations ──► Appliance Recommender (Ranking & Safety Suppression)
+  POST /api/simulate        ──► Energy Savings Simulator (Non-mutating Scenario Math)
+
+[ Client Dashboard (React 19 + Vite + Recharts) ]
+  Historical Trends & Forecast ◄── Static CSV Datasets (/data/)
+  Interactive Optimisation UI  ◄── Local REST API (http://127.0.0.1:8000)
 ```
 
-The full architecture is the target design; components should not be
-described as implemented until they have been built and tested.
+> [!NOTE]
+> **Operational Boundary Clarification:** The PySpark data pipeline operates as an offline batch processing and feature engineering job; it is not continuously streaming data to the dashboard. The React frontend visualizes historical trends and forecasts via pre-computed static CSV exports in `public/data/`, while the recommendation and simulation components query the local Starlette REST API (`127.0.0.1:8000`) on demand. Apache Kafka streaming, PostgreSQL/TimescaleDB persistence, and Power BI enterprise reporting are planned extensions.
 
-## Current Implementation Status
+---
 
-### Completed and tested
+## 4. Implementation and Key Features
 
--   Repository structure and development workspace established.
--   PySpark 3.5.6 starts successfully with Java 17 in the current
-    Codespaces environment.
--   `spark_jobs/read_energy.py` is available for reading and inspecting
-    the energy CSV.
--   `spark_jobs/clean_energy.py` reads a physical sample, standardizes
-    columns, parses timestamps and energy values, applies validation
-    rules, and writes valid and rejected records to separate Parquet
-    outputs.
--   A sample file was created at `data/samples/energy_sample.csv`
-    (approximately 498 KB).
--   The sample cleaning run processed 10,000 rows: 9,999 valid and 1
-    rejected.
--   The raw `data/` directory is excluded from Git.
+* **Distributed Big Data Pipeline (`notebook/GridPulse_Data_Engineering_Work.ipynb`):** Built with PySpark using a Medallion architecture. Enforces strict schema constraints in `FAILFAST` mode, routes malformed records to a quality audit Parquet store, removes 115,453 duplicate readings via composite key grouping, and aggregates data into Gold analytical tables (`hourly_consumption`, `daily_consumption`, `household_summary`) with automated temporal lag features.
+* **Chronological Energy Forecasting (`ml/`):** Prepares 821 clean daily observations with 7-day lag and rolling features. Benchmarks Random Forest against HistGradientBoosting and Seasonal Naive baselines. Persists the trained Random Forest artifact (`random_forest_forecaster.joblib`), produces a 30-day recursive historical forecast (28 February to 29 March 2014), and quantifies error compounding across a 5-origin rolling backtesting framework.
+* **Personalised Appliance Recommendation Engine (`recommendation/appliance_recommender.py`):** Calculates 30-day monthly consumption using unrounded formulas, ranks appliances in descending order, tags high-impact loads (contribution ≥ 20.0% or consumption ≥ 30.0 kWh/month), and applies safety suppression rules for continuous devices (refrigerators, freezers, medical units, or ≥ 20 hrs/day) and low-impact appliances (< 5.0% share). Decouples energy and cost: projected energy savings in kWh are always calculated, while monetary savings require a valid user-configured electricity tariff (returning null and displayed as "Unavailable" if unconfigured).
+* **Energy Savings Simulator (`recommendation/savings_simulator.py`):** Non-mutating simulation module that recalculates household consumption and projected energy savings in kWh (with monetary savings evaluated when a valid electricity tariff is configured) as users adjust appliance operating hours (0–24 hrs/day) and frequencies (1–7 days/week), enforcing atomic input validation and safety warnings.
+* **Backend REST API (`api/main.py`):** Asynchronous API built with Starlette and Uvicorn. Exposes `/api/health`, `/api/recommendations`, and `/api/simulate` with CORS configured for local frontend communication.
+* **Unified Client Dashboard (`dashboards/react-dashboard/`):** Responsive single-page application built on React 19, Vite, and Recharts. Combines historical energy KPIs, consumption trends, tariff comparisons, household profile configuration, appliance management, recommendations, what-if simulations, and 30-day forecast visualizations with an event-driven dashboard refresh that dynamically updates analytics when household profile or appliance data changes.
 
-### In progress / not yet verified
+---
 
--   Processing the complete dataset of approximately 159 million
-    records.
--   Configuring and testing authenticated Google Drive access from
-    Codespaces or selecting another processing environment.
--   Establishing a safe full-data processing plan within available
-    storage.
--   Kafka producers/consumers and Spark Structured Streaming.
--   Bronze → Silver → Gold data-lake progression.
--   Household energy analytics and feature engineering.
--   Forecasting and high-consumption detection.
--   Appliance attribution, recommendation and savings engines.
--   PostgreSQL, FastAPI and Power BI integration.
--   Scalability experiments and end-to-end integration.
+## 5. Team Members and Responsibilities
 
-## Technology Stack
+| Team Member | Core Role | Primary Focus Area |
+| :--- | :--- | :--- |
+| **Abikrishnan M S** | Team Lead / Frontend Development | Unified React 19 dashboard, UI architecture, household profile storage, appliance manager, and client styling. |
+| **Krishnendhu** | Data Engineering Lead | PySpark distributed pipeline, schema enforcement, data quality validation, deduplication, and Gold layer feature engineering. |
+| **Hemalekshmi** | ML & Optimisation Lead | Energy forecasting models, recursive backtesting, recommendation engine, savings simulator, and Starlette REST API. |
 
--   Python
--   Apache Spark / PySpark
--   Java 17 for the currently tested Spark environment
--   Parquet
--   Apache Kafka (planned architecture)
--   Spark Structured Streaming (planned architecture)
--   PostgreSQL (planned architecture)
--   FastAPI (planned architecture)
--   Power BI (planned architecture)
--   Git and GitHub
--   Codex as a development assistant
--   Google Drive as a possible location for the large raw dataset; the
-    Codespaces connection is still to be configured/tested
+---
 
-The current `requirements.txt` lists `pandas`, `numpy`, `pyspark`,
-`pyarrow`, `python-dotenv`, `sqlalchemy`, and `psycopg2-binary`. The
-broader architecture may require additional dependencies as modules are
-implemented.
+## 6. Technology Stack
 
-## Repository Structure
+* **Big Data & Distributed Computing:** Apache Spark (PySpark 4.2.0), Py4J (0.10.9.9), Apache Parquet.
+* **Machine Learning & Analytics:** Python 3.10+, Scikit-Learn, Pandas, NumPy, Joblib.
+* **Backend REST Service:** Starlette, Uvicorn, Requests.
+* **Frontend Web Dashboard:** React (19.3.1), Vite (8.3.5), Recharts (3.10.1), Lucide React (1.64.0).
 
-The current workspace contains these directories (some are still under
-development):
+---
 
-``` text
-GRID_PULSE/
-├── api/
-├── config/
-├── dashboards/
-├── data/                 # Raw/sample data and outputs; ignored by Git
-├── database/
-├── docs/
-├── ml/
-├── recommendation/
-├── scripts/
-├── spark_jobs/
-│   ├── read_energy.py
-│   └── clean_energy.py
-├── streaming/
-├── tests/
-├── .gitignore
-├── docker-compose.yml
-├── requirements.txt
-└── README.md
-```
-
-The team guide also proposes `data/raw/`, `data/bronze/`,
-`data/silver/`, `data/gold/`, `data/samples/`, and a `docker/` directory
-as the intended structure. The repository may evolve toward that
-structure as the pipeline develops.
-
-## Getting Started in Codespaces
+## 7. Installation and Execution
 
 ### Prerequisites
+* **Python:** 3.10 or higher (tested locally on Python 3.15.0).
+* **Node.js & npm:** Node.js 20.19+ or 22.12+ (LTS recommended; Vite 8 requires Node.js 20+).
+* **Java Development Kit (JDK):** Java 17 or 21 (required for running PySpark locally; Spark 4.x does not support Java 8 or 11).
+* **Git:** Version control client.
 
--   Python 3.12 (Python 3.12.3 was observed in the current environment)
--   Java 17
--   Git
--   Access to the dataset
--   Enough free disk space for input and output files
+### Step-by-Step Setup Commands
 
-### 1. Open the repository
-
-Open `GRID_PULSE` in GitHub Codespaces, or clone it:
-
-``` bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+```bash
+# 1. Clone repository
+git clone <REPOSITORY_URL>
 cd GRID_PULSE
-```
 
-Replace the placeholder with your actual repository URL.
-
-### 2. Create and activate a virtual environment
-
-``` bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### 3. Install dependencies
-
-``` bash
-python -m pip install --upgrade pip
+# 2. Set up Python virtual environment & install dependencies
+python -m venv .venv
+source .venv/bin/activate       # On Windows PowerShell: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+pip install starlette uvicorn pandas scikit-learn joblib requests
+
+# 3. Install frontend dependencies
+cd dashboards/react-dashboard
+npm install
+cd ../..
+
+# 4. Execute unit test suite (24 tests)
+python -m unittest discover -s recommendation -p "test_*.py" -v
+
+# 5. Start Backend REST API (Terminal 1)
+python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
+
+# 6. Start Unified Frontend Dashboard (Terminal 2)
+cd dashboards/react-dashboard
+npm run dev
 ```
 
-### 4. Configure Java 17
+*Access Points:* Open `http://localhost:5173` in a browser for the dashboard, and `http://127.0.0.1:8000/api/health` for the backend health check.
 
-In the current Codespaces environment, Spark was verified with Java 17:
+---
 
-``` bash
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export PATH="$JAVA_HOME/bin:$PATH"
-java -version
-```
+## 8. Results and Evaluation
 
-Environment variables may need to be set again in a new terminal.
+### Big Data Pipeline Processing
+* **Throughput:** Scalability benchmarking verified peak observed processing throughput of up to 14.65M rows/second.
+* **Data Integrity:** Cleaned and deduplicated 167,932,474 raw rows into 167,811,461 validated Silver records with exact accounting of 5,560 malformed entries and 115,453 duplicate readings.
 
-### 5. Prepare a small sample
+### Machine Learning Forecasting Evaluation
+* **Chronological Split:** 821 prepared daily records partitioned without shuffling into **656 training observations** (2011-11-30 to 2013-09-15) and **165 test observations** (2013-09-16 to 2014-02-27).
+* **Single-Step Test Holdout Metrics (165 Observations):**
+  * **Random Forest Regressor** ($n=100$, max_depth=8): MAE = **0.3020 kWh/day**, RMSE = **0.3931 kWh/day**, MAPE = **2.81%**, Mean Bias = +0.1327 kWh/day (Note: MAPE is Mean Absolute Percentage Error, not percentage accuracy).
+  * **HistGradientBoosting Regressor:** MAE = 0.3268 kWh/day, RMSE = 0.4284 kWh/day, MAPE = 3.00%.
+  * **Seasonal Naive Baseline (lag-7):** MAE = 0.4192 kWh/day, RMSE = 0.5615 kWh/day, MAPE = 3.89%.
+* **5-Origin Recursive Backtesting (150 Total Predictions across 30-Day Horizons):**
+  * Overall recursive performance: MAE = **0.6532 kWh/day**, RMSE = **0.7965 kWh/day**, MAPE = **6.01%**, Mean Bias = +0.5327 kWh/day. Demonstrates expected autoregressive error accumulation over multi-week horizons.
 
-If the full CSV is available at `data/CC_LCL-FullData.csv`, create a
-sample with the header and first 10,000 data rows:
+### Optimization Suite & Frontend Verification
+* **Unit Test Suite:** All 24 unit tests pass in 0.010s (`recommendation/test_appliance_recommender.py` and `recommendation/test_savings_simulator.py`).
+* **Frontend Verification:** Clean ESLint quality audit (0 errors, 0 warnings); production build compiles into 2,614 optimized modules in 1.35s.
 
-``` bash
-mkdir -p data/samples
-head -n 10001 data/CC_LCL-FullData.csv > data/samples/energy_sample.csv
-```
+---
 
-The current test pipeline uses this physical sample rather than the full
-CSV.
+## 9. Limitations and Future Work
 
-## Run the Current Cleaning Pipeline
+1. **Historical Dataset Scope:** Analysis and forecast models are based on historical London smart meter readings (2011–2014). The 30-day projection represents a 30-day recursive historical forecast (28 February to 29 March 2014) rather than a live operational grid feed.
+2. **Recursive Error Accumulation:** Autoregressive multi-step forecasting exhibits compounding error over extended horizons as predicted values replace actual historical lags (MAE increases from 0.52 kWh/day in week 1 to 0.80 kWh/day in week 4).
+3. **Appliance Attributions:** Energy attributions rely on user-declared wattage and operational schedules rather than Non-Intrusive Load Monitoring (NILM) hardware sensor telemetry.
+4. **Planned Extensions:** Future development goals include implementing real-time Apache Kafka ingestion (`streaming/`), PostgreSQL/TimescaleDB time-series persistence (`database/`), and deploying enterprise Power BI analytical reports.
 
-### Test mode (default)
+---
 
-``` bash
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export PATH="$JAVA_HOME/bin:$PATH"
-
-python spark_jobs/clean_energy.py
-```
-
-Default test paths:
-
-``` text
-Input:
-data/samples/energy_sample.csv
-
-Valid output:
-data/test_silver/energy/
-
-Rejected output:
-data/test_quality/rejected_energy/
-```
-
-The current script overwrites these test output directories on each run.
-
-### Verified sample result
-
-  Result                Count
-  ------------------ --------
-  Total processed      10,000
-  Valid records         9,999
-  Rejected records          1
-
-The rejected sample record had a missing or invalid energy value and
-received the reason `missing_or_invalid_energy`.
-
-### Full-data mode --- do not run yet without a storage plan
-
-The script currently supports:
-
-``` bash
-export GRIDPULSE_FULL_RUN=1
-python spark_jobs/clean_energy.py
-```
-
-In full mode, the current script is configured to read
-`data/CC_LCL-FullData.csv` and write to `data/silver/energy/` and
-`data/quality/rejected_energy/`.
-
-**Do not start the full run in the current Codespace yet.** The raw CSV
-is approximately 7.6 GB, the filesystem previously showed about 9 GB
-free, and the size of the complete Parquet output is unknown. A
-successful full-data run has not yet been demonstrated. The processing
-and storage strategy must be reviewed first.
-
-## Current Data-Quality Rules
-
-The current cleaning script assigns the first matching rejection reason:
-
--   Missing or blank household ID → `missing_household_id`
--   Missing or blank tariff type → `missing_tariff_type`
--   Missing, blank, or invalid timestamp →
-    `missing_or_invalid_timestamp`
--   Missing, blank, non-numeric, or NaN energy value →
-    `missing_or_invalid_energy`
--   Negative energy value → `negative_energy_value`
-
-The valid Silver output contains:
-
--   `household_id`
--   `reading_time`
--   `energy_kwh_half_hour`
--   `tariff_type`
-
-Valid records are written as Parquet partitioned by `tariff_type`;
-rejected records are written separately for quality review.
-
-## Team Members and Responsibilities
-
-The team guide defines these primary areas. During the initial
-foundation stage, all three members should understand the shared
-pipeline before working independently.
-
-### Abikrishnan M S --- Team Lead
-
--   Overall architecture and Git/GitHub management
--   Dataset integration and PySpark
--   Data cleaning, Data Lake and Parquet
--   Spark transformations and feature engineering
--   Scalability experiments and final integration
-
-### Krishnendhu --- Team Member
-
--   Kafka producer and consumer
--   Spark Structured Streaming
--   Energy forecasting
--   High-consumption detection
--   Machine-learning evaluation
-
-### Hemalekshmi --- Team Member
-
--   Household energy fingerprint
--   Appliance attribution
--   Recommendation engine and savings engine
--   PostgreSQL
--   FastAPI
--   Power BI support
-
-## Team Development Workflow
-
-The team uses individual branches and reviews changes before
-integration. **Do not experiment directly on `main`.**
-
-The intended flow is:
-
-``` text
-Individual member branch
-        |
-        v
-Implement a small task
-        |
-        v
-Understand and review code
-        |
-        v
-Run tests
-        |
-        v
-Review Git diff
-        |
-        v
-Commit and push
-        |
-        v
-Team review / pull request
-        |
-        v
-develop
-        |
-        v
-Final testing
-        |
-        v
-main
-```
-
-The guide names the branches `abikrishnan`, `krishnendhu`, and
-`hemalekshmi`, with work integrated into `develop` and then promoted to
-`main` after final testing. Use the branch names and policies currently
-configured in the actual repository.
-
-For each task, report: - **DONE:** what was completed - **FILES:** files
-created or modified - **TEST:** commands/tests and results -
-**PROBLEM:** issues encountered - **NEXT:** proposed next step
-
-### Example commit workflow
-
-Review the branch and changed files first:
-
-``` bash
-git status
-git diff
-```
-
-Then stage only the intended files, review the staged changes, and
-commit:
-
-``` bash
-git add README.md spark_jobs/ requirements.txt .gitignore
-git diff --cached
-git commit -m "docs: document GridPulse project workflow"
-git push origin <YOUR_BRANCH_NAME>
-```
-
-Replace `<YOUR_BRANCH_NAME>` with your current branch. Do not blindly
-use `git add .`; verify that no secrets, raw datasets, or generated
-outputs are staged.
-
-## Git and Dataset Safety
-
--   Do not commit the full CSV or large generated Parquet data to
-    GitHub.
--   Keep `.env`, API keys, passwords, database credentials and access
-    tokens out of Git.
--   Use `.env.example` with placeholders when configuration
-    documentation is needed.
--   Check ignored files and staged changes before committing:
-
-``` bash
-git check-ignore -v data/CC_LCL-FullData.csv
-git status --short
-git diff --cached
-```
-
-## Current Blocker: Full-Dataset Processing and Storage
-
-The current Codespace previously reported a 32 GB filesystem with
-approximately 9 GB available. The raw CSV alone is approximately 7.6 GB.
-The complete output size is unknown, so a full run could exhaust disk
-space.
-
-The user has a Google Drive copy reported as 7.96 GB, but the file has
-not been verified as identical to the Codespaces copy and direct
-authenticated access from Codespaces has not yet been configured. Do not
-download another full copy into the Codespace.
-
-Possible approaches to evaluate: - Authenticated remote access to Google
-Drive from Codespaces, if supported and reliable for Spark. - Processing
-through Google Colab with Drive mounted, while keeping source code in
-GitHub. - A machine or storage environment with more available disk
-space.
-
-Any chosen approach should first be tested on a small sample and should
-account for storage, memory, remote I/O, and session limitations.
-
-## Next Steps
-
--   [ ] Confirm the preferred authenticated way to access the Drive
-    dataset.
--   [ ] Choose a full-data processing environment with sufficient
-    storage.
--   [ ] Review the cleaning script for repeated full-data scans and safe
-    output behavior.
--   [ ] Test the selected approach on a bounded sample.
--   [ ] Process the complete dataset and validate accepted/rejected
-    counts.
--   [ ] Continue Bronze → Silver → Gold data-lake development.
--   [ ] Implement Kafka and Spark Structured Streaming according to the
-    PRD.
--   [ ] Develop energy analytics, forecasting, high-consumption
-    detection, recommendations, savings, PostgreSQL/FastAPI, and Power
-    BI modules.
--   [ ] Add automated tests, scalability experiments, and integration
-    documentation.
-
-## Dataset Attribution and License
-
-Before publishing the repository publicly, add the official dataset
-source, attribution, and applicable licence/usage terms. Do not assume
-that the ability to download a dataset automatically permits
-unrestricted redistribution.
+*GridPulse — Big Data Energy Analytics Platform — Academic Engineering Project*
