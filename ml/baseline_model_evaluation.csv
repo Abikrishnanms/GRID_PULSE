@@ -1,0 +1,4 @@
+Model,MAE,RMSE,MAPE
+Seasonal Naive (lag_7),0.4192,0.5615,3.89
+RandomForestRegressor,0.302,0.3931,2.81
+HistGradientBoostingRegressor,0.3268,0.4284,3.0

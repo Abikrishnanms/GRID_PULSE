@@ -34,6 +34,9 @@ import {
 
 import { loadEnergyData } from "./services/energyData";
 import ApplianceManager from "./components/ApplianceManager";
+import ApplianceRecommendations from "./components/ApplianceRecommendations";
+import EnergySavingsSimulator from "./components/EnergySavingsSimulator";
+import HistoricalForecastChart from "./components/HistoricalForecastChart";
 
 // --------------------------------------------------
 // FORMAT HELPERS
@@ -1041,6 +1044,14 @@ function App() {
 
 <ApplianceManager />
 
+{/* PERSONALISED APPLIANCE RECOMMENDATIONS */}
+
+<ApplianceRecommendations />
+
+{/* ENERGY SAVINGS SIMULATOR */}
+
+<EnergySavingsSimulator />
+
             {/* HISTORICAL HOUSEHOLD ANALYTICS */}
 
             <section
@@ -1104,35 +1115,7 @@ function App() {
 
             {/* FORECASTING */}
 
-            <section
-              className="panel section-panel"
-              id="forecast"
-            >
-              <PanelHeading
-                title="Forecasting"
-                subtitle="Forecast readiness"
-              />
-
-              <div className="forecast-status">
-                <div className="forecast-icon">
-                  <Activity size={24} />
-                </div>
-
-                <div>
-                  <h4>
-                    No historical forecast model connected
-                  </h4>
-
-                  <p>
-                    This dashboard currently displays
-                    historical observations. Appliance-based
-                    estimates are available in My Appliances.
-                    A historical forecasting model will be
-                    implemented separately.
-                  </p>
-                </div>
-              </div>
-            </section>
+            <HistoricalForecastChart />
 
             {/* SETTINGS */}
 

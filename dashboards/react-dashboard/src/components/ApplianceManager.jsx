@@ -100,6 +100,11 @@ export default function ApplianceManager() {
     setAppliances(updated);
     setForm({ ...initialAppliance });
     setMessage("Appliance added successfully.");
+    window.dispatchEvent(
+      new CustomEvent("gridpulse-appliances-updated", {
+        detail: updated,
+      })
+    );
   }
 
   function removeAppliance(id) {
@@ -112,6 +117,11 @@ export default function ApplianceManager() {
 
     setAppliances(updated);
     setMessage("Appliance removed.");
+    window.dispatchEvent(
+      new CustomEvent("gridpulse-appliances-updated", {
+        detail: updated,
+      })
+    );
   }
 
   function updateRate(value) {
@@ -123,6 +133,11 @@ export default function ApplianceManager() {
 
     if (saveHomeProfile(updated)) {
       setHome(updated);
+      window.dispatchEvent(
+        new CustomEvent("gridpulse-home-updated", {
+          detail: updated,
+        })
+      );
       setMessage("");
     } else {
       setMessage("Could not save the electricity rate.");
