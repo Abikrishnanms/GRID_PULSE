@@ -96,8 +96,8 @@ React Dashboard ◄── TimescaleDB ◄── Savings Simulator ◄── ML F
 | Team Member | Core Role | Primary Focus Area |
 | :--- | :--- | :--- |
 | **Abikrishnan M S** | Team Lead / Frontend Development | Unified React 19 dashboard, UI architecture, household profile storage, appliance manager, and client styling. |
-| **Krishnendhu** | Data Engineering Lead | PySpark distributed pipeline, schema enforcement, data quality validation, deduplication, and Gold layer feature engineering. |
-| **Hemalekshmi** | ML & Optimisation Lead | Energy forecasting models, recursive backtesting, recommendation engine, savings simulator, and Starlette REST API. |
+| **Krishnendhu M S** | Data Engineering Lead | PySpark distributed pipeline, schema enforcement, data quality validation, deduplication, and Gold layer feature engineering. |
+| **Hemalekshmi R** | ML & Optimisation Lead | Energy forecasting models, recursive backtesting, recommendation engine, savings simulator, and Starlette REST API. |
 
 ---
 
@@ -181,4 +181,4 @@ npm run dev
 
 ---
 
-*GridPulse — Big Data Energy Analytics Platform — Academic Engineering Project*
+*GridPulse — Big Data Energy Analytics Platform — Big Data Capstone Project*
