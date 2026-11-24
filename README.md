@@ -1,6 +1,6 @@
 # GridPulse — Big Data-Driven Household Energy Analytics and Personalised Energy Optimisation Platform
 
-> **Academic Project Status:** The distributed PySpark data-cleaning, deduplication and aggregation pipeline, historical machine learning forecasting models, personalised appliance recommendation engine, energy savings simulator, Starlette REST API, and unified React dashboard are fully implemented and verified. Downstream Apache Kafka streaming, PostgreSQL/TimescaleDB storage, and enterprise Power BI dashboards represent planned architectural extensions.
+> **Academic Project Status:** The distributed PySpark data-cleaning, deduplication and aggregation pipeline, historical machine learning forecasting models, personalised appliance recommendation engine, energy savings simulator, Starlette REST API, and unified React dashboard are fully implemented and verified. 
 
 ---
 
@@ -45,13 +45,6 @@ The dataset is associated with the Low Carbon London project. Because the exact 
 
 ## 3. System Architecture
 
-### Target / Planned Architecture (PRD Specification)
-```text
-Smart Meters ──► Apache Kafka ──► Spark Structured Streaming ──► Data Lake (Bronze/Silver/Gold)
-                                                                            │
-React Dashboard ◄── TimescaleDB ◄── Savings Simulator ◄── ML Forecaster ◄──┘
-```
-
 ### Implemented Architecture
 ```text
 [ Big Data Processing Layer (PySpark Batch / Google Colab) ]
@@ -76,7 +69,7 @@ React Dashboard ◄── TimescaleDB ◄── Savings Simulator ◄── ML F
 ```
 
 > [!NOTE]
-> **Operational Boundary Clarification:** The PySpark data pipeline operates as an offline batch processing and feature engineering job; it is not continuously streaming data to the dashboard. The React frontend visualizes historical trends and forecasts via pre-computed static CSV exports in `public/data/`, while the recommendation and simulation components query the local Starlette REST API (`127.0.0.1:8000`) on demand. Apache Kafka streaming, PostgreSQL/TimescaleDB persistence, and Power BI enterprise reporting are planned extensions.
+> **Operational Boundary Clarification:** The PySpark data pipeline operates as an offline batch processing and feature engineering job; it is not continuously streaming data to the dashboard. The React frontend visualizes historical trends and forecasts via pre-computed static CSV exports in `public/data/`, while the recommendation and simulation components query the local Starlette REST API (`127.0.0.1:8000`) on demand.
 
 ---
 
